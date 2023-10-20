@@ -1,4 +1,5 @@
 import { ChainMap, ChainMetadata, chainMetadata } from '@hyperlane-xyz/sdk';
+import { ProtocolType } from '@hyperlane-xyz/utils';
 
 // A map of chain names to ChainMetadata
 export const chains: ChainMap<ChainMetadata & { mailbox?: Address }> = {
@@ -28,22 +29,46 @@ export const chains: ChainMap<ChainMetadata & { mailbox?: Address }> = {
   //   logoURI: '/logo.svg',
   // },
 
-  // Including configs for some Solana chains by default
-  solana: {
-    ...chainMetadata.solana,
+  rollup01: {
+    name: 'rollup01',
+    displayName: 'CCLabs 01',
+    protocol: ProtocolType.Ethereum,
+    chainId: 11801,
+    nativeToken: {
+      name: 'astria',
+      symbol: 'RIA',
+      decimals: 18,
+    },
     rpcUrls: [
       {
-        http: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+        http: 'http://executor.rollup01.k8s.cclabs.tech',
       },
     ],
-    mailbox: 'TODO',
+    mailbox: "0x81cC6E0eb0Ca4399700909DBE5Ec8c29081b3Cf1",
   },
-  solanatestnet: {
-    ...chainMetadata.solanatestnet,
-    mailbox: 'TODO',
+  rollup02: {
+    name: 'rollup02',
+    displayName: 'CCLabs 02',
+    protocol: ProtocolType.Ethereum,
+    chainId: 11802,
+    nativeToken: {
+      name: 'astria',
+      symbol: 'RIA',
+      decimals: 18,
+    },
+    rpcUrls: [
+      {
+        http: 'http://executor.rollup02.k8s.cclabs.tech',
+      },
+    ],
+    mailbox: "0x807C6990F7D21636C678E58c5Aa7518Eb203CBaf",
   },
-  solanadevnet: {
-    ...chainMetadata.solanadevnet,
-    mailbox: '4v25Dz9RccqUrTzmfHzJMsjd1iVoNrWzeJ4o6GYuJrVn',
+  sepolia: {
+    ...chainMetadata.sepolia,
+    rpcUrls: [
+      {
+        http: 'https://nd-950-422-262.p2pify.com/3ead640b1f1e7b471894eb32c3e8d95c',
+      },
+    ],
   },
 };
