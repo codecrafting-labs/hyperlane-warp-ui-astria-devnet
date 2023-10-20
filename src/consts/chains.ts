@@ -41,7 +41,7 @@ export const chains: ChainMap<ChainMetadata & { mailbox?: Address }> = {
     },
     rpcUrls: [
       {
-        http: 'http://executor.rollup01.k8s.cclabs.tech',
+        http: 'https://executor.rollup01.k8s.cclabs.tech',
       },
     ],
     mailbox: "0x81cC6E0eb0Ca4399700909DBE5Ec8c29081b3Cf1",
@@ -58,7 +58,7 @@ export const chains: ChainMap<ChainMetadata & { mailbox?: Address }> = {
     },
     rpcUrls: [
       {
-        http: 'http://executor.rollup02.k8s.cclabs.tech',
+        http: 'https://executor.rollup02.k8s.cclabs.tech',
       },
     ],
     mailbox: "0x807C6990F7D21636C678E58c5Aa7518Eb203CBaf",
