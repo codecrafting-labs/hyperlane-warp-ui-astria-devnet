@@ -44,7 +44,7 @@ export const chains: ChainMap<ChainMetadata & { mailbox?: Address }> = {
         http: 'https://executor.rollup01.k8s.cclabs.tech',
       },
     ],
-    mailbox: "0x81cC6E0eb0Ca4399700909DBE5Ec8c29081b3Cf1",
+    mailbox: "0xEF576440010DD45F47D5F322e15052144e5e886C",
   },
   rollup02: {
     name: 'rollup02',
@@ -61,7 +61,7 @@ export const chains: ChainMap<ChainMetadata & { mailbox?: Address }> = {
         http: 'https://executor.rollup02.k8s.cclabs.tech',
       },
     ],
-    mailbox: "0x807C6990F7D21636C678E58c5Aa7518Eb203CBaf",
+    mailbox: "0x3DB8f2b3ed5257FC1C65428bfb1f5A8EE8c6f47d",
   },
   sepolia: {
     ...chainMetadata.sepolia,

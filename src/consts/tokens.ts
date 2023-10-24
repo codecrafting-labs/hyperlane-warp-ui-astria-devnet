@@ -21,7 +21,7 @@ export const tokenList: WarpTokenConfig = [
     name: 'Ether',
     symbol: 'ETH',
     decimals: 18,
-    hypNativeAddress: '0x1B16c398fcA874Cd7cc08b1BB84b51F83Ae571d6',
+    hypNativeAddress: '0xab3fe24b65e09a98118C87Ba8b537ba46373F14c',
     logoURI: '/logos/weth.png',
   },
   {
@@ -30,7 +30,7 @@ export const tokenList: WarpTokenConfig = [
     "symbol":"RIA",
     "decimals":18,
     "type":"native",
-    "hypNativeAddress":"0x1B16c398fcA874Cd7cc08b1BB84b51F83Ae571d6"
+    "hypNativeAddress":"0x0f2F244c46536E77402a0E7BBe57871030306ecF"
   },
 
 
