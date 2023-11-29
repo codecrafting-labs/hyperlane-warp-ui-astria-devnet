@@ -29,39 +29,39 @@ export const chains: ChainMap<ChainMetadata & { mailbox?: Address }> = {
   //   logoURI: '/logo.svg',
   // },
 
-  rollup01: {
-    name: 'rollup01',
+  cclabs01: {
+    name: 'cclabs01',
     displayName: 'CCLabs 01',
     protocol: ProtocolType.Ethereum,
     chainId: 11801,
     nativeToken: {
-      name: 'astria',
-      symbol: 'RIA',
+      name: 'Code1',
+      symbol: 'CDE1',
       decimals: 18,
     },
     rpcUrls: [
       {
-        http: 'https://executor.rollup01.k8s.cclabs.tech',
+        http: 'https://executor.cclabs01.k8s.cclabs.tech',
       },
     ],
-    mailbox: "0xEF576440010DD45F47D5F322e15052144e5e886C",
+    mailbox: "0xc6c3dC01B9cB78aB2B7d9846e0491AEC7DbCE7C1",
   },
-  rollup02: {
-    name: 'rollup02',
+  cclabs02: {
+    name: 'cclabs02',
     displayName: 'CCLabs 02',
     protocol: ProtocolType.Ethereum,
     chainId: 11802,
     nativeToken: {
-      name: 'astria',
-      symbol: 'RIA',
+      name: 'Code2',
+      symbol: 'CDE2',
       decimals: 18,
     },
     rpcUrls: [
       {
-        http: 'https://executor.rollup02.k8s.cclabs.tech',
+        http: 'https://executor.cclabs02.k8s.cclabs.tech',
       },
     ],
-    mailbox: "0x3DB8f2b3ed5257FC1C65428bfb1f5A8EE8c6f47d",
+    mailbox: "0xc6c3dC01B9cB78aB2B7d9846e0491AEC7DbCE7C1",
   },
   sepolia: {
     ...chainMetadata.sepolia,
