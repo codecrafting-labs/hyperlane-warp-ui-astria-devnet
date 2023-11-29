@@ -5,8 +5,10 @@ export enum Color {
   primaryGray = '#6B7280',
   lightGray = '#D0D4DB',
   primaryBlue = '#025AA1',
+  primaryPink = '#D631B9',
   primaryBeige = '#F1EDE9',
   primaryRed = '#BF1B15',
+  primaryMint = '#31D99C',
 }
 
 // Useful for cases when using class names isn't convenient

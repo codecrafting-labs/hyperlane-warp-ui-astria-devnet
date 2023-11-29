@@ -15,15 +15,17 @@ export const tokenList: WarpTokenConfig = [
   // },
 
   // Example native token for an EVM chain
-  {
-    type: 'native',
-    chainId: 11155111,
-    name: 'Ether',
-    symbol: 'ETH',
-    decimals: 18,
-    hypNativeAddress: '0xab3fe24b65e09a98118C87Ba8b537ba46373F14c',
-    logoURI: '/logos/weth.png',
-  },
+
+  // {
+  //   type: 'native',
+  //   chainId: 11155111,
+  //   name: 'Ether',
+  //   symbol: 'ETH',
+  //   decimals: 18,
+  //   hypNativeAddress: '0xEa44A29da87B5464774978e6A4F4072A4c048949',
+  //   logoURI: '/logos/weth.png',
+  // },
+
   {
     chainId: 11801,
     "name":"astria",

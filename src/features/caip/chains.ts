@@ -8,7 +8,11 @@ export function getCaip2Id(protocol: ProtocolType, reference: string | number): 
   if (!Object.values(ProtocolType).includes(protocol)) {
     throw new Error(`Invalid chain environment: ${protocol}`);
   }
-  if (typeof reference !== 'number' || reference <= 0) {
+  if (
+    ([ProtocolType.Ethereum, ProtocolType.Sealevel].includes(protocol) &&
+      (typeof reference !== 'number' || reference <= 0)) ||
+    (protocol === ProtocolType.Cosmos && typeof reference !== 'string')
+  ) {
     throw new Error(`Invalid chain reference: ${reference}`);
   }
   return `${protocol}:${reference}`;
@@ -26,7 +30,7 @@ export function parseCaip2Id(id: ChainCaip2Id) {
   return { protocol, reference };
 }
 
-export function tryParseCaip2Id(id: ChainCaip2Id) {
+export function tryParseCaip2Id(id?: ChainCaip2Id) {
   if (!id) return undefined;
   try {
     return parseCaip2Id(id);
@@ -41,7 +45,7 @@ export function getProtocolType(id: ChainCaip2Id) {
   return protocol;
 }
 
-export function tryGetProtocolType(id: ChainCaip2Id) {
+export function tryGetProtocolType(id?: ChainCaip2Id) {
   return tryParseCaip2Id(id)?.protocol;
 }
 
@@ -50,7 +54,7 @@ export function getChainReference(id: ChainCaip2Id) {
   return reference;
 }
 
-export function tryGetChainReference(id: ChainCaip2Id) {
+export function tryGetChainReference(id?: ChainCaip2Id) {
   return tryParseCaip2Id(id)?.reference;
 }
 

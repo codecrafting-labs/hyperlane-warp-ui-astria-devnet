@@ -1,3 +1,5 @@
+import { DeliverTxResponse, ExecuteResult } from '@cosmjs/cosmwasm-stargate';
+import { useChain as useCosmosChain, useChains as useCosmosChains } from '@cosmos-kit/react';
 import { useConnectModal as useEvmModal } from '@rainbow-me/rainbowkit';
 import { useConnection, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal as useSolanaModal } from '@solana/wallet-adapter-react-ui';
@@ -7,7 +9,7 @@ import {
   switchNetwork as switchEvmNetwork,
 } from '@wagmi/core';
 import { providers } from 'ethers';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import {
   useAccount as useEvmAccount,
@@ -17,6 +19,7 @@ import {
 
 import { ProtocolType, sleep } from '@hyperlane-xyz/utils';
 
+import { PLACEHOLDER_COSMOS_CHAIN } from '../../consts/values';
 import { logger } from '../../utils/logger';
 import {
   getCaip2Id,
@@ -24,12 +27,20 @@ import {
   getEthereumChainId,
   tryGetProtocolType,
 } from '../caip/chains';
+import { getCosmosChainNames } from '../chains/metadata';
 import { getChainByRpcEndpoint } from '../chains/utils';
-import { getMultiProvider } from '../multiProvider';
+import { getChainMetadata, getMultiProvider } from '../multiProvider';
+
+interface ChainAddress {
+  address: string;
+  chainCaip2Id?: ChainCaip2Id;
+}
 
 export interface AccountInfo {
   protocol: ProtocolType;
-  address?: Address;
+  // This needs to be an array instead of a single address b.c.
+  // Cosmos wallets have different addresses per chain
+  addresses: Array<ChainAddress>;
   connectorName?: string;
   isReady: boolean;
 }
@@ -39,23 +50,23 @@ export function useAccounts(): {
   readyAccounts: Array<AccountInfo>;
 } {
   // Evm
-  const { address, isConnected, connector } = useEvmAccount();
-  const isEvmAccountReady = !!(address && isConnected && connector);
-  const evmConnectorName = connector?.name;
+  const {
+    address: evmAddress,
+    isConnected: isEvmConnected,
+    connector: evmConnector,
+  } = useEvmAccount();
+  const isEvmAccountReady = !!(evmAddress && isEvmConnected && evmConnector);
+  const evmConnectorName = evmConnector?.name;
 
   const evmAccountInfo: AccountInfo = useMemo(
     () => ({
       protocol: ProtocolType.Ethereum,
-      address: address ? `${address}` : undefined, // massage wagmi addr type
+      addresses: evmAddress ? [{ address: `${evmAddress}` }] : [],
       connectorName: evmConnectorName,
       isReady: isEvmAccountReady,
     }),
-    [address, evmConnectorName, isEvmAccountReady],
+    [evmAddress, evmConnectorName, isEvmAccountReady],
   );
-
-  useEffect(() => {
-    if (isEvmAccountReady) logger.debug('Evm account ready:', address);
-  }, [address, isEvmAccountReady]);
 
   // Solana
   const { publicKey, connected, wallet } = useSolanaWallet();
@@ -66,20 +77,39 @@ export function useAccounts(): {
   const solAccountInfo: AccountInfo = useMemo(
     () => ({
       protocol: ProtocolType.Sealevel,
-      address: solAddress,
+      addresses: solAddress ? [{ address: solAddress }] : [],
       connectorName: solConnectorName,
       isReady: isSolAccountReady,
     }),
     [solAddress, solConnectorName, isSolAccountReady],
   );
 
-  useEffect(() => {
-    if (isSolAccountReady) logger.debug('Solana account ready:', solAddress);
-  }, [solAddress, isSolAccountReady]);
+  // Cosmos
+  const cosmosChainToContext = useCosmosChains(getCosmosChainNames());
+  const cosmAccountInfo: AccountInfo = useMemo(() => {
+    const cosmAddresses: Array<ChainAddress> = [];
+    let cosmConnectorName: string | undefined = undefined;
+    let isCosmAccountReady = false;
+    const multiProvider = getMultiProvider();
+    for (const [chainName, context] of Object.entries(cosmosChainToContext)) {
+      if (!context.address) continue;
+      const caip2Id = getCaip2Id(ProtocolType.Cosmos, multiProvider.getChainId(chainName));
+      cosmAddresses.push({ address: context.address, chainCaip2Id: caip2Id });
+      isCosmAccountReady = true;
+      cosmConnectorName ||= context.wallet?.prettyName;
+    }
+    return {
+      protocol: ProtocolType.Cosmos,
+      addresses: cosmAddresses,
+      connectorName: cosmConnectorName,
+      isReady: isCosmAccountReady,
+    };
+  }, [cosmosChainToContext]);
 
+  // Filtered ready accounts
   const readyAccounts = useMemo(
-    () => [evmAccountInfo, solAccountInfo].filter((a) => a.isReady),
-    [evmAccountInfo, solAccountInfo],
+    () => [evmAccountInfo, solAccountInfo, cosmAccountInfo].filter((a) => a.isReady),
+    [evmAccountInfo, solAccountInfo, cosmAccountInfo],
   );
 
   return useMemo(
@@ -87,11 +117,12 @@ export function useAccounts(): {
       accounts: {
         [ProtocolType.Ethereum]: evmAccountInfo,
         [ProtocolType.Sealevel]: solAccountInfo,
-        [ProtocolType.Fuel]: { protocol: ProtocolType.Fuel, isReady: false },
+        [ProtocolType.Cosmos]: cosmAccountInfo,
+        [ProtocolType.Fuel]: { protocol: ProtocolType.Fuel, isReady: false, addresses: [] },
       },
       readyAccounts,
     }),
-    [evmAccountInfo, solAccountInfo, readyAccounts],
+    [evmAccountInfo, solAccountInfo, cosmAccountInfo, readyAccounts],
   );
 }
 
@@ -103,6 +134,23 @@ export function useAccountForChain(chainCaip2Id?: ChainCaip2Id): AccountInfo | u
   return accounts[protocol];
 }
 
+export function useAccountAddressForChain(chainCaip2Id?: ChainCaip2Id): Address | undefined {
+  return getAccountAddressForChain(chainCaip2Id, useAccountForChain(chainCaip2Id));
+}
+
+export function getAccountAddressForChain(
+  chainCaip2Id?: ChainCaip2Id,
+  account?: AccountInfo,
+): Address | undefined {
+  if (!chainCaip2Id || !account?.addresses.length) return undefined;
+  if (account.protocol === ProtocolType.Cosmos) {
+    return account.addresses.find((a) => a.chainCaip2Id === chainCaip2Id)?.address;
+  } else {
+    // Use first because only cosmos has the notion of per-chain addresses
+    return account.addresses[0].address;
+  }
+}
+
 export function useConnectFns(): Record<ProtocolType, () => void> {
   // Evm
   const { openConnectModal: openEvmModal } = useEvmModal();
@@ -112,13 +160,17 @@ export function useConnectFns(): Record<ProtocolType, () => void> {
   const { setVisible: setSolanaModalVisible } = useSolanaModal();
   const onConnectSolana = useCallback(() => setSolanaModalVisible(true), [setSolanaModalVisible]);
 
+  // Cosmos
+  const { openView: onConnectCosmos } = useCosmosChain(PLACEHOLDER_COSMOS_CHAIN);
+
   return useMemo(
     () => ({
       [ProtocolType.Ethereum]: onConnectEthereum,
       [ProtocolType.Sealevel]: onConnectSolana,
+      [ProtocolType.Cosmos]: onConnectCosmos,
       [ProtocolType.Fuel]: () => alert('TODO'),
     }),
-    [onConnectEthereum, onConnectSolana],
+    [onConnectEthereum, onConnectSolana, onConnectCosmos],
   );
 }
 
@@ -128,6 +180,10 @@ export function useDisconnectFns(): Record<ProtocolType, () => Promise<void>> {
 
   // Solana
   const { disconnect: disconnectSol } = useSolanaWallet();
+
+  // Cosmos
+  const { disconnect: disconnectCosmos, address: addressCosmos } =
+    useCosmosChain(PLACEHOLDER_COSMOS_CHAIN);
 
   const onClickDisconnect =
     (env: ProtocolType, disconnectFn?: () => Promise<void> | void) => async () => {
@@ -144,11 +200,14 @@ export function useDisconnectFns(): Record<ProtocolType, () => Promise<void>> {
     () => ({
       [ProtocolType.Ethereum]: onClickDisconnect(ProtocolType.Ethereum, disconnectEvm),
       [ProtocolType.Sealevel]: onClickDisconnect(ProtocolType.Sealevel, disconnectSol),
-      [ProtocolType.Fuel]: onClickDisconnect(ProtocolType.Sealevel, () => {
+      [ProtocolType.Cosmos]: onClickDisconnect(ProtocolType.Cosmos, async () => {
+        if (addressCosmos) await disconnectCosmos();
+      }),
+      [ProtocolType.Fuel]: onClickDisconnect(ProtocolType.Fuel, () => {
         'TODO';
       }),
     }),
-    [disconnectEvm, disconnectSol],
+    [disconnectEvm, disconnectSol, disconnectCosmos, addressCosmos],
   );
 }
 
@@ -162,19 +221,20 @@ export function useActiveChains(): {
   readyChains: Array<ActiveChainInfo>;
 } {
   // Evm
-  const { chain } = useEvmNetwork();
+  const { chain: evmChainDetails } = useEvmNetwork();
   const evmChain: ActiveChainInfo = useMemo(
     () => ({
-      chainDisplayName: chain?.name,
-      chainCaip2Id: chain ? getCaip2Id(ProtocolType.Ethereum, chain.id) : undefined,
+      chainDisplayName: evmChainDetails?.name,
+      chainCaip2Id: evmChainDetails
+        ? getCaip2Id(ProtocolType.Ethereum, evmChainDetails.id)
+        : undefined,
     }),
-    [chain],
+    [evmChainDetails],
   );
 
   // Solana
   const { connection } = useConnection();
   const connectionEndpoint = connection?.rpcEndpoint;
-
   const solChain: ActiveChainInfo = useMemo(() => {
     const metadata = getChainByRpcEndpoint(connectionEndpoint);
     if (!metadata) return {};
@@ -184,9 +244,12 @@ export function useActiveChains(): {
     };
   }, [connectionEndpoint]);
 
+  // Cosmos
+  const cosmChain = useMemo(() => ({} as ActiveChainInfo), []);
+
   const readyChains = useMemo(
-    () => [evmChain, solChain].filter((c) => !!c.chainDisplayName),
-    [evmChain, solChain],
+    () => [evmChain, solChain, cosmChain].filter((c) => !!c.chainDisplayName),
+    [evmChain, solChain, cosmChain],
   );
 
   return useMemo(
@@ -194,11 +257,12 @@ export function useActiveChains(): {
       chains: {
         [ProtocolType.Ethereum]: evmChain,
         [ProtocolType.Sealevel]: solChain,
+        [ProtocolType.Cosmos]: cosmChain,
         [ProtocolType.Fuel]: {},
       },
       readyChains,
     }),
-    [evmChain, solChain, readyChains],
+    [evmChain, solChain, cosmChain, readyChains],
   );
 }
 
@@ -256,7 +320,8 @@ export function useTransactionFns(): Record<
   const { sendTransaction: sendSolTransaction } = useSolanaWallet();
 
   const onSwitchSolNetwork = useCallback(async (chainCaip2Id: ChainCaip2Id) => {
-    toast.warn(`Solana wallet must be connected to origin chain ${chainCaip2Id}}`);
+    const chainName = getChainMetadata(chainCaip2Id).displayName;
+    toast.warn(`Solana wallet must be connected to origin chain ${chainName}}`);
   }, []);
 
   const onSendSolTx = useCallback(
@@ -287,15 +352,72 @@ export function useTransactionFns(): Record<
     [onSwitchSolNetwork, sendSolTransaction],
   );
 
+  // Cosmos
+  const cosmosChainToContext = useCosmosChains(getCosmosChainNames());
+
+  const onSwitchCosmNetwork = useCallback(async (chainCaip2Id: ChainCaip2Id) => {
+    const chainName = getChainMetadata(chainCaip2Id).displayName;
+    toast.warn(`Cosmos wallet must be connected to origin chain ${chainName}}`);
+  }, []);
+
+  const onSendCosmTx = useCallback(
+    async ({
+      tx,
+      chainCaip2Id,
+      activeCap2Id,
+    }: {
+      tx: { type: 'cosmwasm' | 'stargate'; request: any };
+      chainCaip2Id: ChainCaip2Id;
+      activeCap2Id?: ChainCaip2Id;
+    }) => {
+      const chainName = getChainMetadata(chainCaip2Id).name;
+      const chainContext = cosmosChainToContext[chainName];
+      if (!chainContext?.address) throw new Error(`Cosmos wallet not connected for ${chainName}`);
+      if (activeCap2Id && activeCap2Id !== chainCaip2Id) await onSwitchCosmNetwork(chainCaip2Id);
+      logger.debug(`Sending ${tx.type} tx on chain ${chainCaip2Id}`);
+      const { getSigningCosmWasmClient, getSigningStargateClient } = chainContext;
+      let result: ExecuteResult | DeliverTxResponse;
+      let confirm: () => Promise<any>;
+      if (tx.type === 'cosmwasm') {
+        const client = await getSigningCosmWasmClient();
+        result = await client.executeMultiple(chainContext.address, [tx.request], 'auto');
+        confirm = async () => {
+          if (result.transactionHash) return result;
+          throw new Error(`Cosmos tx ${result.transactionHash} failed: ${JSON.stringify(result)}`);
+        };
+      } else if (tx.type === 'stargate') {
+        const client = await getSigningStargateClient();
+        result = await client.signAndBroadcast(chainContext.address, [tx.request], 'auto');
+      } else {
+        throw new Error('Invalid cosmos tx type');
+      }
+
+      confirm = async () => {
+        if (result.transactionHash) return result;
+        throw new Error(`Cosmos tx ${result.transactionHash} failed: ${JSON.stringify(result)}`);
+      };
+      return { hash: result.transactionHash, confirm };
+    },
+    [onSwitchCosmNetwork, cosmosChainToContext],
+  );
+
   return useMemo(
     () => ({
       [ProtocolType.Ethereum]: { sendTransaction: onSendEvmTx, switchNetwork: onSwitchEvmNetwork },
       [ProtocolType.Sealevel]: { sendTransaction: onSendSolTx, switchNetwork: onSwitchSolNetwork },
+      [ProtocolType.Cosmos]: { sendTransaction: onSendCosmTx, switchNetwork: onSwitchCosmNetwork },
       [ProtocolType.Fuel]: {
         sendTransaction: () => alert('TODO') as any,
         switchNetwork: () => alert('TODO') as any,
       },
     }),
-    [onSendEvmTx, onSendSolTx, onSwitchEvmNetwork, onSwitchSolNetwork],
+    [
+      onSendEvmTx,
+      onSendSolTx,
+      onSwitchEvmNetwork,
+      onSwitchSolNetwork,
+      onSendCosmTx,
+      onSwitchCosmNetwork,
+    ],
   );
 }

@@ -35,24 +35,6 @@ select:focus {
 }
 
 /*
-Background 
-==========
-*/
-#app-content::before {
-  content: '';
-  position: fixed;
-  z-index: -1;
-  display: block;
-  width: 100vw;
-  height: 100vh;
-  background-color: #f3f4f6;
-  background-image: url('/background-texture.png');
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center top;
-}
-
-/*
 Text and shadows
 ================
 */
@@ -236,4 +218,12 @@ Timeline tweaks
 
 .timeline-container h4 {
   font-size: clamp(0.75rem, 0.825rem, 0.9rem);
+}
+
+/*
+Fixes for cosmos chain selection modal
+====================================
+*/
+div[data-floating-ui-portal] > div {
+  z-index: 10000;
 }
